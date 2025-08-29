@@ -40,8 +40,9 @@ jobs:
       # 添加这一步来自动接受Android SDK许可证
       - name: Accept Android licenses
         run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1
+        shell: bash
+
       # 安装所需的NDK版本
       - name: Install NDK
         run: |
