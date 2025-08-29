@@ -37,12 +37,13 @@ jobs:
         uses: actions/checkout@v4
 
 
-      # 添加这一步自动接受Android SDK许可证
+      # 添加这一步来自动接受Android SDK许可证
       - name: Accept Android licenses
         run: |
           sudo apt-get update && sudo apt-get install -y expect
           expect -c '
-            spawn $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+            set timeout 180
+            spawn '"$ANDROID_HOME"'/cmdline-tools/latest/bin/sdkmanager --licenses
             while {[expect {
               "Accept? (y/N):" { send "y\r"; exp_continue }
               eof
