@@ -33,6 +33,18 @@ android {
             abiFilters += listOf("arm64-v8a")
         }
     }
+
+    // ****** 设置自定义签名 ******
+    signingConfigs {
+        all {
+            storeFile = file("../test.jks")
+            storePassword = "test"
+            keyAlias = "test"
+            keyPassword = "test"
+        }
+    }
+    // ****** 设置自定义签名 ******
+
     buildTypes {
         release {
             isMinifyEnabled = false           // Enable code shrinking
