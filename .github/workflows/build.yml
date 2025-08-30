@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         # build_type: ['debug', 'release']
-        build_type: ['release']
+        build_type: ['debug']
     name: Build APK
     runs-on: ubuntu-latest
     steps:
