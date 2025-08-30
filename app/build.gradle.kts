@@ -36,12 +36,16 @@ android {
 
     // ****** 设置自定义签名 ******
     signingConfigs {
-        all {
+        release {
             storeFile = file("../test.jks")
             storePassword = "test"
             keyAlias = "test"
             keyPassword = "test"
         }
+    }
+    buildTypes {
+        debug {            signingConfig = signingConfigs.release        }
+        release {            signingConfig = signingConfigs.release        }
     }
     // ****** 设置自定义签名 ******
 
