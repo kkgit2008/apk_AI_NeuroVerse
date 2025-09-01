@@ -26,6 +26,8 @@ android {
         versionName = "0.3-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        multiDexEnabled = true
+
         buildConfigField("String", "ALIAS", getProperty("ALIAS"))
 
         ndk {
