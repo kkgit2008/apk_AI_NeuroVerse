@@ -34,6 +34,12 @@ android {
         }
     }
 
+//android {
+//    defaultConfig {
+        multiDexEnabled = true
+//    }
+//}
+
     // ****** 设置自定义签名@Kotlin语法 ******
     signingConfigs {
         create("releaseee") {
@@ -129,7 +135,11 @@ android {
 //}
 
 dependencies {
-    implementation(libs.androidx.lifecycle.runtime.compose)
+   
+//dependencies {
+    implementation("androidx.multidex:multidex:2.0.1")
+//}
+ implementation(libs.androidx.lifecycle.runtime.compose)
     //CORE
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
 
