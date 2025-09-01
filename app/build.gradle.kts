@@ -26,8 +26,6 @@ android {
         versionName = "0.3-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        multiDexEnabled = true
-
         buildConfigField("String", "ALIAS", getProperty("ALIAS"))
 
         ndk {
@@ -131,11 +129,7 @@ android {
 //}
 
 dependencies {
-   
-//dependencies {
-    implementation("androidx.multidex:multidex:2.0.1")
-//}
- implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     //CORE
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
 
