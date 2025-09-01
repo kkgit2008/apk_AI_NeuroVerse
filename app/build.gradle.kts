@@ -36,14 +36,6 @@ android {
         }
     }
 
-//android {
-//    defaultConfig {
-        multiDex {
-            enable = true
-        }
-//    }
-//}
-
     // ****** 设置自定义签名@Kotlin语法 ******
     signingConfigs {
         create("releaseee") {
