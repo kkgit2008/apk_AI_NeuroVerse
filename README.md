@@ -1,5 +1,6 @@
 # NeuroVerse
 
+
 **Offline Android AI chat with a modular plugin framework (automation coming soon).**
 
 NeuroVerse is a privacy‑first Android app that runs fully on‑device and showcases a plugin‑based architecture. The current public milestone is **chat‑only** via the first‑party **AI Chat** plugin. The command/automation engine exists in the codebase but is **disabled and not user‑facing yet**.
