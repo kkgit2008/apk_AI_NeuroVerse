@@ -23,7 +23,6 @@ class NVApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-
         // Synchronous, cheap initializations
         ModelManager.init(applicationContext)
         UpdateCenter.init(this)

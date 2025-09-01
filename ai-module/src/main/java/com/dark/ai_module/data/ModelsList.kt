@@ -7,22 +7,63 @@ import java.io.File
 object ModelsList {
 
     val chatTemplate = """
-            <|im_start|>system
-            Your name is Neuron, developed by NeuroV. You only send short, polite, relevant auto-replies when the user is unavailable. Never overthink, reason, or generate long responses. Keep replies under 10 words.
-            Use the following parameters to adjust your tone:
-            - Professionalism: {{ professionalism }} (0.1 - 9.0)
-            - Emotional: {{ emotional }} (0.1 - 9.0)
-            
-            Respond with tone adjusted to these values.
+            {# ChatML-ish, llama.cpp minimal-engine safe #}
+            {%- for m in messages -%}
+            <|im_start|>{{ m['role'] }}
+            {{ m['content'] }}
             <|im_end|>
-            {% for message in messages %}
-            <|im_start|>{{ message['role'] }}
-            {{ message['content'] }}<|im_end|>
-            {% endfor %}
-            {% if add_generation_prompt -%}
+            {%- endfor -%}
+            {%- if add_generation_prompt -%}
             <|im_start|>assistant
-            {% endif %}
+            {%- endif -%}
         """.trimIndent()
+
+    val generalPurposeSystemPrompt = """
+        You are a helpful, respectful and honest assistant. Always be as helpful as possible, and do not provide harmful or explicit content.
+    """.trimIndent()
+
+    fun getToolCallSystemPrompt(buildToolsListForPrompt: String): String {
+        return """
+You are a precise, concise assistant.
+
+# Protocol
+- Turns are delimited by tokens `<|im_start|>role … <|im_end|>`.
+- If you NEED a tool, respond with JSON ONLY:
+  {"type":"tool_call","tool":"<tool_name>","arguments":{...}}
+- If you DO NOT need a tool, respond with JSON ONLY:
+  {"type":"final","content":"<your answer>"}
+- No extra prose, no markdown, no comments, no trailing commas.
+
+# Available tools (USE EXACT NAMES; do NOT rename or alias)
+${buildToolsListForPrompt} 
+
+# Arguments rules
+- Use ONLY the arguments listed for the tool. Do not add extra keys.
+- Keep types exact (String vs Number). If a limit exists, respect it.
+
+# Absolutes
+- DO NOT invent tools (e.g., "web_search" is WRONG if "searchWeb" is defined).
+- Tool must be EXACTLY one of the names above.
+- If unsure which tool matches, choose none and return a "final".
+
+# JSON schema you must follow when calling a tool
+{
+  "type": "tool_call",
+  "tool": "<one of the exact names above>",
+  "arguments": { /* strictly the documented keys for that tool */ }
+}
+
+# Quality
+- If info is missing: say it briefly, then proceed safely.
+- Be short and on-topic.
+
+# Checklist
+- Single JSON object only.
+- Correct "tool" name from the list.
+- "arguments" exactly as documented.
+""".trimIndent()
+
+    }
 
     fun getModelList(context: Context): List<ModelsData> {
 
@@ -77,15 +118,6 @@ object ModelsList {
     }
 
     val CUSTOM_MODEL = ModelsData(
-        id = -1,
-        "Custom Model",
-        "Custom Model",
-        4096,
-        "NO",
-        "---",
-        "---",
-        "",
-        chatTemplate,
-        0
+        id = -1, "Custom Model", "Custom Model", 4096, "NO", "---", "---", "", chatTemplate, 0
     )
 }

@@ -2,9 +2,7 @@ package com.dark.plugins.ui.theme
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -15,6 +13,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.google.android.material.animation.MotionSpec
 
 private val DarkColorScheme = darkColorScheme(
     primary = White,
@@ -51,7 +50,6 @@ fun rDP(baseDp: Dp, designWidth: Float = 360f): Dp {
     return (baseDp.value * scaleFactor).dp
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NeuroVersePluginTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -71,7 +69,6 @@ fun NeuroVersePluginTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography(),
-        motionScheme = MotionScheme.expressive(),
         content = content
     )
 }

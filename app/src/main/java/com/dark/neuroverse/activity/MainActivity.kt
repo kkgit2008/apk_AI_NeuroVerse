@@ -1,6 +1,7 @@
 package com.dark.neuroverse.activity
 
 import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -41,7 +42,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
+        //startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
         val permission = Manifest.permission.POST_NOTIFICATIONS
         val requestNotificationPermission =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->

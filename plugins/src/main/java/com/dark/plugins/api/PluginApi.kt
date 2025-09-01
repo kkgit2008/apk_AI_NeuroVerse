@@ -71,6 +71,11 @@ open class PluginApi(ctx: Context) : ComposePlugin {
     }
 
     @Keep
+    open fun runTool(context: Context, toolName: String, args: JSONObject, callback: (result: Any) -> Unit){
+
+    }
+
+    @Keep
     override fun content(): ComposableBlock = { AppContent() }
 
 }

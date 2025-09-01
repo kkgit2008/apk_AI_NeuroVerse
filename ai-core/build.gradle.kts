@@ -27,11 +27,11 @@ android {
             cmake {
                 arguments += "-DLLAMA_CURL=OFF"
                 arguments += "-DLLAMA_BUILD_COMMON=ON"
-                arguments += "-DGGML_LLAMAFILE=OFF"
+                arguments += "-DGGML_LLAMAFILE=ON"
                 arguments += "-DGGML_PAGE_SIZE=16384"
                 arguments += "-DVULKAN_HEADERS_INCLUDE_DIR=/usr/include"
-                arguments += "-DGGML_VULKAN_DEBUG=ON"
-                arguments += "-DGGML_VULKAN=ON"
+                arguments += "-DGGML_VULKAN_DEBUG=OFF"
+                arguments += "-DGGML_VULKAN=OFF"
                 arguments += "-DCMAKE_BUILD_TYPE=Release"
 
 

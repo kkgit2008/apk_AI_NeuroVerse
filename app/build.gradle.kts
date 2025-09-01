@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.ksp)
-  //  alias(libs.plugins.chaquo.py)
+
     kotlin("plugin.serialization") version "2.1.21"
 }
 val localPropertiesFile = rootProject.file("local.properties")
@@ -129,6 +129,13 @@ android {
 //}
 
 dependencies {
+
+    //NET
+    implementation(libs.jsoup)
+    implementation(libs.okhttp)
+    implementation(libs.moshi)
+    implementation(libs.moshi.kotlin)
+
     implementation(libs.androidx.lifecycle.runtime.compose)
     //CORE
     implementation("org.jetbrains.kotlin:kotlin-stdlib")

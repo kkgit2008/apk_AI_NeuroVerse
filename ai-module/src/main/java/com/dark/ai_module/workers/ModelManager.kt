@@ -92,6 +92,7 @@ object ModelManager {
     fun loadModel(
         modelData: ModelsData,
         defaults: ManagerDefaults = ManagerDefaults(),
+        chatTemplate: String = modelData.chatTemplate,
         forceReload: Boolean = false,
         keepInMemory: Boolean = false,
         onLoaded: (() -> Unit)? = null,
@@ -109,7 +110,7 @@ object ModelManager {
             init = Neuron.ModelInitParams(
                 ctxSize = defaults.contextLength,
                 systemPrompt = defaults.systemPrompt,
-                chatTemplate = modelData.chatTemplate,
+                chatTemplate = chatTemplate,
                 useMLOCK = keepInMemory
             ),
             forceReload = forceReload,
@@ -124,6 +125,7 @@ object ModelManager {
     suspend fun loadModelAwait(
         modelData: ModelsData,
         defaults: ManagerDefaults = ManagerDefaults(),
+        chatTemplate: String = modelData.chatTemplate,
         forceReload: Boolean = false,
         keepInMemory: Boolean = false,
     ): Result<Unit> = withContext(io) {
@@ -131,7 +133,7 @@ object ModelManager {
             val f = File(modelData.modelPath)
             if (!f.exists()) return@withContext Result.failure(IllegalArgumentException("Missing model: ${f.path}"))
             val latch = kotlinx.coroutines.CompletableDeferred<Unit>()
-            loadModel(modelData, defaults, forceReload, keepInMemory) { latch.complete(Unit) }
+            loadModel(modelData, defaults, chatTemplate, forceReload, keepInMemory) { latch.complete(Unit) }
             latch.await()
             Result.success(Unit)
         } catch (t: Throwable) {

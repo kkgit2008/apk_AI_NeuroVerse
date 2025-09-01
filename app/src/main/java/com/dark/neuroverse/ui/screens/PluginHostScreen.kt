@@ -1,6 +1,7 @@
 package com.dark.neuroverse.ui.screens
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,11 +13,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.dark.neuroverse.viewModel.PluginHostViewModel
+import com.dark.plugins.api.CommandQueue
 import com.dark.plugins.manager.PluginManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /* ===================================================================== *//*  Composables                                                           *//* ===================================================================== */
 @SuppressLint("StateFlowValueCalledInComposition")
@@ -29,11 +36,22 @@ fun PluginHostScreen(
     val loaded by viewModel.loadedPlugins.collectAsState()
     val activeName by viewModel.activePluginName.collectAsState()
     val isActive by viewModel.isActiveLoaded.collectAsState()
+    val scope = rememberCoroutineScope()
 
 
-    /* ----------  fallback select  ---------- */
+
     LaunchedEffect(loaded, activeName) {
         viewModel.selectFirstIfNone()
+    }
+
+    LaunchedEffect(false) {
+        scope.launch(Dispatchers.IO + SupervisorJob()) {
+            while (true){
+                Log.d("PluginHostScreen", "CommandQueue: ${CommandQueue.hasCommand()}")
+                CommandQueue.poll()
+                delay(1000) // log once per second
+            }
+        }
     }
 
     Column(

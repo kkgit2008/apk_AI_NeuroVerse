@@ -264,8 +264,11 @@ object Neuron {
     private suspend fun handleStreaming(r: Request.Streaming) {
         val lib = activeModelOrThrow().lib
         val acc = StringBuilder()
-
         val done = CompletableDeferred<Unit>()
+
+        // collect launched UI jobs so we can join them before finishing
+        val uiJobs = mutableListOf<Job>()
+
         currentGenJob = lib.generateStreaming(
             prompt = r.prompt,
             maxTokens = r.gen.maxTokens,
@@ -273,8 +276,9 @@ object Neuron {
             onStart = {},
             onGenerate = { tok ->
                 acc.append(tok)
-                // Deliver tokens on the configured dispatcher (Main by default)
-                scope.launch(tokenDispatcher) { r.onToken(tok) }
+                // Post to UI but keep a handle so we can join later
+                val j = scope.launch(tokenDispatcher) { r.onToken(tok) }
+                uiJobs += j
             },
             onError = { msg ->
                 done.completeExceptionally(IllegalStateException(msg))
@@ -283,11 +287,17 @@ object Neuron {
                 done.complete(Unit)
             }
         )
+
+        // Wait for native completion
         done.await()
-        val reply = acc.toString().trim()
+        // Ensure every last onToken has been applied to UI before finalizing
+        uiJobs.forEach { it.join() }
+
+        val reply = acc.toString() // keep exact bytes; no trim
         r.completer.complete(reply)
         replies.tryEmit(reply)
     }
+
 
     /* ------------------------------------------------------------- */
     /*  Helpers                                                      */
@@ -297,4 +307,8 @@ object Neuron {
 
     private fun activeModelOrThrow(): Variant =
         activeModel() ?: error("No active model selected. Call loadModel() first.")
+
+    fun setSystemPrompt(systemPrompt: String) {
+        activeModel()?.lib?.setSystemPrompt(systemPrompt)
+    }
 }

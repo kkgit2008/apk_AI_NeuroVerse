@@ -8,77 +8,82 @@ import com.dark.plugins.db.LocalPluginDBManager
 import com.dark.plugins.db.PluginLocalDBDao
 import com.dark.plugins.model.LoadedPlugin
 import com.dark.plugins.model.PluginLocalDB
+import com.dark.plugins.model.Tools
 import com.dark.plugins.worker.instantiatePlugin
 import com.dark.plugins.worker.loadPluginZipFromPath
 import dalvik.system.InMemoryDexClassLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.cancellation.CancellationException
 
 object PluginManager {
 
+    //Private Variables
     private const val TAG = "PluginManager"
-
-    // A standard Scope For Plugins to Execute
     private val supervisorJob = SupervisorJob()
-    val pluginScope: CoroutineScope = CoroutineScope(Dispatchers.IO + supervisorJob)
-
-    // Installed plugins (from DB)
     private val _installedPlugins = MutableStateFlow<List<PluginLocalDB>>(emptyList())
-    val installedPlugins: StateFlow<List<PluginLocalDB>> = _installedPlugins.asStateFlow()
-
-    // Running plugins
     private val _runningPlugins = MutableStateFlow<List<LoadedPlugin>>(emptyList())
-    val runningPlugins: StateFlow<List<LoadedPlugin>> = _runningPlugins.asStateFlow()
-
-    // Mapping Plugin ViewModels
     private val pluginViewModelStores = mutableMapOf<String, ViewModelStore>()
-
-    // Current Plugin in use
     private val _currentPlugin = MutableStateFlow<LoadedPlugin?>(null)
-    val currentPlugin: StateFlow<LoadedPlugin?> = _currentPlugin.asStateFlow()
-
-    // Backing DAO (init via init(context))
     private val daoRef = AtomicReference<PluginLocalDBDao?>()
 
-    fun init(context: Context) {
-        Log.d(TAG, "PluginManager.init() called")
+    //Public Variables
+    val pluginScope: CoroutineScope = CoroutineScope(Dispatchers.IO + supervisorJob)
+    val installedPlugins: StateFlow<List<PluginLocalDB>> = _installedPlugins.asStateFlow()
+    val runningPlugins: StateFlow<List<LoadedPlugin>> = _runningPlugins.asStateFlow()
+    val currentPlugin: StateFlow<LoadedPlugin?> = _currentPlugin.asStateFlow()
 
-        val firstInit = daoRef.get() == null
-        if (firstInit) {
-            Log.d(TAG, "DAO is not initialized — proceeding with setup")
-            val db = LocalPluginDBManager.getInstance(context.applicationContext)
-            daoRef.set(db.getPluginLocalDBDao())
-            Log.d(TAG, "DAO initialized: ${daoRef.get()}")
-        } else {
-            Log.d(TAG, "DAO already initialized — continuing with plugin sync and seeding")
+    val toolsList: StateFlow<List<Pair<String, List<Tools>>>> =
+        _installedPlugins
+            .map { rows -> rows.map { it.pluginName to it.tools } }
+            .stateIn(pluginScope, SharingStarted.Eagerly, emptyList())
+
+    //Public Fun's
+
+    //Init Function
+    fun init(context: Context) {
+        Log.d(TAG, "PluginManager.init() Started")
+        val pluginDatabase = daoRef.get() == null
+
+        //If pluginDatabase is not null Then Return
+        if (!pluginDatabase) {
+            Log.d(TAG, "Database is already initialized — continuing with plugin sync and seeding")
+            return
         }
 
-        // Always start collection if not already collecting
-        if (firstInit) {
-            pluginScope.launch {
-                Log.d(TAG, "Starting collection of plugins from DB...")
-                try {
-                    daoRef.get()?.getAll()?.collect { rows ->
-                        Log.d(TAG, "DB emitted ${rows.size} plugin(s)")
-                        _installedPlugins.value = rows
-                    }
-                } catch (t: Throwable) {
-                    Log.e(TAG, "Failed collecting plugins from DB", t)
+        //If pluginDatabase is null Then Init Database
+        Log.d(TAG, "Database is not initialized — proceeding with setup")
+        val db = LocalPluginDBManager.getInstance(context.applicationContext)
+        daoRef.set(db.getPluginLocalDBDao())
+        Log.d(TAG, "Database is initialized: ${daoRef.get()}")
+        pluginScope.launch {
+            Log.d(TAG, "Starting collection of plugins from DB...")
+            try {
+                daoRef.get()?.getAll()?.collect { rows ->
+                    Log.d(TAG, "DB emitted ${rows.size} plugin(s)")
+                    _installedPlugins.value = rows
                 }
+            } catch (t: Throwable) {
+                Log.e(TAG, "Failed collecting plugins from DB", t)
             }
         }
 
-        registerPluginFromAssets(context, arrayOf("ai-chat-plugin.zip"))
+        //Register Plugin From Assets :: FOR DEBUG PURPOSE ONLY
+        registerPluginFromAssets(context, arrayOf("web-searching-plugin.zip"))
     }
 
 
@@ -113,71 +118,91 @@ object PluginManager {
      * Load + run a plugin by DB/display name. Returns the LoadedPlugin (even if run fails),
      * and updates running/current state if start succeeded.
      */
+
     fun runPlugin(ctx: Context, name: String, data: Any): LoadedPlugin {
         val path = getPlugin(name)
-        Log.d("PluginManager", "Running plugin: $path")
         if (path.isEmpty()) {
             Log.w(TAG, "Plugin not found: $name")
             return LoadedPlugin(null, null, null, null, IllegalArgumentException("Not installed"))
         }
 
         val loadedPlugin = loadPluginFromFile(File(path), ctx)
-        val api = loadedPlugin.api
-
-        if (api == null) {
+        val api = loadedPlugin.api ?: return loadedPlugin.also {
             Log.e(TAG, "No API found for plugin: $name", loadedPlugin.throwable)
-            return loadedPlugin
         }
 
-        val pluginName = runCatching { api.getPluginInfo().name }.getOrElse { name }
+        val idName =
+            loadedPlugin.manifest?.name ?: api.getPluginInfo().name.takeIf { it.isNotBlank() }
+            ?: name
 
-        // Launch the plugin job and keep a reference on LoadedPlugin
         val job = pluginScope.launch {
             try {
                 api.onCreate(data)
-                // IMPORTANT: Do NOT call onDestroy() immediately — let stop/cancel trigger it.
-                // onDestroy will be invoked in stopPlugin() or if the job is cancelled with a finally.
+                // Keep this coroutine alive until stopPlugin() cancels it.
+                awaitCancellation()
+            } catch (ce: CancellationException) {
+                // normal stop
+                throw ce
             } catch (e: Exception) {
-                Log.e(TAG, "Plugin execution failed for $pluginName", e)
+                Log.e(TAG, "Plugin execution failed for $idName", e)
             } finally {
                 try {
                     api.onDestroy()
                 } catch (e: Exception) {
-                    Log.e(TAG, "onDestroy failed for $pluginName", e)
+                    Log.e(TAG, "onDestroy failed for $idName", e)
                 }
             }
         }
 
         val running = loadedPlugin.copy(job = job)
+
+        // Replace any existing instance with the same idName
         _runningPlugins.value =
-            _runningPlugins.value.filterNot { it.api?.getPluginInfo()?.name == pluginName } + running
+            _runningPlugins.value.filterNot { it.displayName() == idName } + running
 
         _currentPlugin.value = running
+
+        // Auto-remove from running list when the job completes
+        job.invokeOnCompletion {
+            val list = _runningPlugins.value.filterNot { it.displayName() == idName }
+            _runningPlugins.value = list
+            if (_currentPlugin.value?.displayName() == idName) {
+                _currentPlugin.value = list.firstOrNull()
+            }
+            pluginViewModelStores.remove(idName)?.clear()
+        }
+
         return running
     }
+
 
     fun stopPlugin(pluginName: String) {
         Log.d(TAG, "Stopping plugin: $pluginName")
 
         val currentList = _runningPlugins.value.toMutableList()
-        val idx = currentList.indexOfFirst { it.api?.getPluginInfo()?.name == pluginName }
+        val idx = currentList.indexOfFirst { it.displayName() == pluginName }
         if (idx == -1) {
-            Log.w(TAG, "Plugin $pluginName not found in loaded plugins.")
+            Log.w(
+                TAG,
+                "Plugin $pluginName not found in loaded plugins. Running=${currentList.map { it.displayName() }}"
+            )
             return
         }
 
         val plugin = currentList.removeAt(idx)
-        // Cancel its job -> triggers onDestroy in runPlugin's finally
+
+        // Cancel the job – onDestroy() is called in runPlugin’s finally.
         plugin.job?.cancel()
 
         _runningPlugins.value = currentList
-        if (_currentPlugin.value?.api?.getPluginInfo()?.name == pluginName) {
+        if (_currentPlugin.value?.displayName() == pluginName) {
             _currentPlugin.value = currentList.firstOrNull()
         }
 
         pluginViewModelStores.remove(pluginName)?.clear()
         Log.d(TAG, "Plugin $pluginName successfully stopped.")
     }
+
 
     fun getViewModelStoreOwner(pluginName: String): ViewModelStoreOwner {
         return object : ViewModelStoreOwner {
@@ -210,6 +235,10 @@ object PluginManager {
     }
 
     // --- Internals ---
+
+    private fun LoadedPlugin.displayName(): String = this.manifest?.name?.takeIf { it.isNotBlank() }
+        ?: this.api?.getPluginInfo()?.name?.takeIf { it.isNotBlank() } ?: ""
+
 
     private suspend fun installPlugin(file: File, context: Context) = withContext(Dispatchers.IO) {
         if (!file.exists()) throw IOException("Plugin file not found: ${file.absolutePath}")
@@ -244,7 +273,8 @@ object PluginManager {
             manifestCode = manifest.rawCode,
             pluginPath = destFile.absolutePath,
             mainClass = manifest.mainClass,
-            pluginVersion = manifest.version
+            pluginVersion = manifest.version,
+            tools = manifest.tools
         )
     }
 
@@ -286,7 +316,8 @@ object PluginManager {
         manifestCode: String,
         pluginPath: String,
         mainClass: String,
-        pluginVersion: String
+        pluginVersion: String,
+        tools: List<Tools>
     ) {
         val dao = daoRef.get()
         if (dao == null) {
@@ -301,7 +332,8 @@ object PluginManager {
                         manifestCode = manifestCode,
                         pluginPath = pluginPath,
                         mainClass = mainClass,
-                        pluginVersion = pluginVersion
+                        pluginVersion = pluginVersion,
+                        tools = tools
                     )
                 )
             } catch (t: Throwable) {
@@ -342,5 +374,10 @@ object PluginManager {
             Log.e(TAG, "Failed to load plugin from ${path.absolutePath}", t)
             LoadedPlugin(job = null, manifest = null, api = null, content = null, throwable = t)
         }
+    }
+
+
+    fun addTools() {
+
     }
 }

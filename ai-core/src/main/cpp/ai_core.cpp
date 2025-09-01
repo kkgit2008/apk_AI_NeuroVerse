@@ -220,7 +220,7 @@ Java_com_mp_ai_1core_NativeLib_nativeInit(
 
     g_ctx = llama_init_from_model(g_model, cparams);
 
-   // g_model_info = get_model_info(g_model);
+    // g_model_info = get_model_info(g_model);
     if (!g_ctx) {
         LOGE("Failed to create context");
         free_everything();
@@ -340,11 +340,14 @@ static std::string apply_chat_template(const llama_model *model,
     // Prefer override if set
     if (!g_chat_template_override.empty()) {
         tmpl = g_chat_template_override.c_str();
+        LOGI("Using Custom Chat-Template");
     } else {
         tmpl = llama_model_chat_template(model, nullptr);
+        LOGE("Error in Chat-Template, Falling back To Model ChatTemplate");
     }
 
     if (!tmpl || *tmpl == '\0') {
+        LOGE("Error in Chat-Template, Falling back To Self Impl");
         // Fallback
         std::string out;
         if (!system_msg.empty()) {
@@ -355,6 +358,8 @@ static std::string apply_chat_template(const llama_model *model,
         out += "User: ";
         out += user_msg;
         out += "\nAssistant: ";
+
+        LOGI("CHAT-TEMPLATE :: %s", out.c_str());
         return out;
     }
 
@@ -367,7 +372,7 @@ static std::string apply_chat_template(const llama_model *model,
 
     int32_t need = llama_chat_apply_template(
             tmpl, msgs.data(), (int32_t)msgs.size(),
-            1,
+            add_assistant,
             nullptr, 0
     );
     if (need < 0) need = -need;
@@ -376,7 +381,7 @@ static std::string apply_chat_template(const llama_model *model,
 
     int32_t written = llama_chat_apply_template(
             tmpl, msgs.data(), (int32_t)msgs.size(),
-            1,
+            add_assistant,
             out.data(), need
     );
     if (written < 0) written = -written;
