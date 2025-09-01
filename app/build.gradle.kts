@@ -36,7 +36,9 @@ android {
 
 //android {
 //    defaultConfig {
-        multiDexEnabled = true
+        multiDex {
+            enable = true
+        }
 //    }
 //}
 
