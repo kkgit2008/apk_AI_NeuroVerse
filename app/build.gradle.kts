@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.ksp)
 
+
     kotlin("plugin.serialization") version "2.1.21"
 }
 val localPropertiesFile = rootProject.file("local.properties")
