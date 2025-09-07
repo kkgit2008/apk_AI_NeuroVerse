@@ -1,4 +1,4 @@
-name: Build and Save AAR Files
+name: Build and Save AAR Files Even on Failure
 
 on:
   workflow_dispatch:  # 允许手动触发工作流
@@ -19,9 +19,11 @@ jobs:
           cache: gradle
           
       - name: Build project and download dependencies
+        id: build_step  # 给步骤设置ID，方便后续引用
         run: ./gradlew assembleDebug  # 执行构建命令，会下载所需的AAR文件
         
       - name: Locate downloaded AAR files
+        if: always()  # 始终执行，即使前面的步骤失败
         run: |
           # 查找所有下载的AAR文件并记录位置
           find ~/.gradle -name "*.aar" > aar_files.txt
@@ -29,6 +31,7 @@ jobs:
           cat aar_files.txt
           
       - name: Create AAR archive
+        if: always()  # 始终执行
         run: |
           # 创建一个目录存放AAR文件
           mkdir -p collected_aars
@@ -42,6 +45,7 @@ jobs:
           zip -r aar_files.zip collected_aars/
           
       - name: Upload AAR files as artifact
+        if: always()  # 始终执行，确保即使构建失败也能上传
         uses: actions/upload-artifact@v4
         with:
           name: downloaded-aar-files
