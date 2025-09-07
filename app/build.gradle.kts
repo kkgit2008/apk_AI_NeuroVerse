@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.ksp)
 
+
     kotlin("plugin.serialization") version "2.1.21"
 }
 val localPropertiesFile = rootProject.file("local.properties")
@@ -20,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.dark.neurov"
-        minSdk = 33
+        minSdk = 34
         targetSdk = 36
         versionCode = 3
         versionName = "0.3-beta"
@@ -33,6 +34,51 @@ android {
             abiFilters += listOf("arm64-v8a")
         }
     }
+
+    // ****** 设置自定义签名@Kotlin语法 ******
+    signingConfigs {
+        create("releaseee") {
+            val localProperties = Properties()
+            val localPropertiesFile = rootProject.file("local.properties")
+            enableV1Signing = true // 启用 V1 签名
+            enableV2Signing = true // 启用 V2 签名 (推荐，Android 7.0+)
+            enableV3Signing = true // 启用 V3 签名 (推荐，Android 9+)
+            if (localPropertiesFile.exists()) {
+                localProperties.load(FileInputStream(localPropertiesFile))
+
+                val storeFilePath = localProperties.getProperty("storeFile")
+                val storePasswordValue = localProperties.getProperty("storePassword")
+                val keyAliasValue = localProperties.getProperty("keyAlias")
+                val keyPasswordValue = localProperties.getProperty("keyPassword")
+
+                if (storeFilePath != null && storePasswordValue != null && 
+                    keyAliasValue != null && keyPasswordValue != null) {
+                    storeFile = file(storeFilePath)
+                    storePassword = storePasswordValue
+                    keyAlias = keyAliasValue
+                    keyPassword = keyPasswordValue
+                } else {
+                    logger.error("There is sth wrong with file content:local.properties !")
+                }
+            } else {
+                logger.error("File not exist:local.properties !")
+            }
+        }
+    }
+
+        buildTypes {
+            debug {
+                signingConfig = signingConfigs.getByName("releaseee")
+                //applicationIdSuffix '.debug'
+                versionNameSuffix = "-debug"
+            }
+            release {
+                signingConfig = signingConfigs.getByName("releaseee")
+
+            }
+        }
+    // ****** 设置自定义签名@Kotlin语法 ******
+
     buildTypes {
         release {
             isMinifyEnabled = false           // Enable code shrinking
