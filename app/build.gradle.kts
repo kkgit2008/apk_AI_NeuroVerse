@@ -140,6 +140,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     //CORE
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
@@ -171,9 +172,9 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.animation)
-    implementation(libs.material)
 
     //TESTING
     testImplementation(libs.junit)

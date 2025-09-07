@@ -49,10 +49,6 @@ class MainActivity : ComponentActivity() {
                 if (!isGranted) "Permission denied".makeToast(this)
             }
 
-        // For deep-linking into a specific plugin/tab
-        val pluginName = intent.getStringExtra("plugin_name")
-        Log.d("MainActivity", "plugin_name extra: $pluginName")
-
         setContent {
             val navController = rememberNavController()
             var isInitializing by remember { mutableStateOf(true) }
@@ -68,7 +64,6 @@ class MainActivity : ComponentActivity() {
                 // Decide where to start: Home if a model exists or pluginName is provided, else Models
                 val hasModel = ModelManager.isAnyModelInstalled()
                 val startScreen = when {
-                    pluginName != null -> Screen.Home.route
                     hasModel -> Screen.Home.route
                     else -> Screen.Model.route
                 }
@@ -79,11 +74,9 @@ class MainActivity : ComponentActivity() {
             }
 
             NeuroVerseTheme {
-                Scaffold { innerPadding ->
                     NavHost(
                         navController = navController,
                         startDestination = Screen.Intro.route,
-                        modifier = Modifier.padding(innerPadding)
                     ) {
                         composable(Screen.Intro.route) {
                             IntroScreen(isInitializing)
@@ -103,14 +96,12 @@ class MainActivity : ComponentActivity() {
                                 onRequestSettingsChange = {
                                     navController.navigate(Screen.Settings.route)
                                 },
-                                pluginName = pluginName
                             )
                         }
                         composable(Screen.Settings.route) {
                             SettingsScreen()
                         }
                     }
-                }
             }
         }
     }

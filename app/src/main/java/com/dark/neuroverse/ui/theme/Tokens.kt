@@ -1,9 +1,11 @@
 package com.dark.neuroverse.ui.theme
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 
 object NVSpacing {
     @get:Composable
@@ -23,6 +25,10 @@ object NVRadius {
     val chip get() = rDP(10.dp)
 }
 
+fun dpToPx(context: Context, dp: Dp): Int {
+    val scale = context.resources.displayMetrics.density
+    return (dp.value * scale + 0.5f).toInt()
+}
 data class ActionColors(val bg: Color, val fg: Color, val outline: Color)
 
 @Composable

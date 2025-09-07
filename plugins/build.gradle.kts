@@ -69,7 +69,6 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.animation)
-    implementation(libs.material)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.runtime.android)
