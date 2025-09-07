@@ -14,6 +14,7 @@ env:
   ### Build from project root (when 'app' folder is just at project root)
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
+  NDK_VERSION: 29.0.13599879
 
 permissions:
   contents: write
@@ -36,9 +37,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      ### 缓存NDK安装目录
+      - name: Cache NDK
+        uses: actions/cache@v3
+        id: cache-ndk
+        with:
+          path: /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
+          key: ${{ runner.os }}-ndk-${{ env.NDK_VERSION }}
 
-      # 自动接受所有Android许可证（含Preview）并安装NDK
+
+      # 自动接受所有Android许可证（含Preview）并安装NDK（仅当缓存未命中时）
       - name: Accept Android licenses and install NDK
+        if: steps.cache-ndk.outputs.cache-hit != 'true'
         run: |
           # 安装交互式应答工具expect
           sudo apt-get update && sudo apt-get install -y expect
@@ -63,14 +73,14 @@ jobs:
               -re "\[.*\] \d+%.*" {
                 exp_continue
               }
-              # 监听流程结束（必须返回布尔值，修复语法错误）
+              # 监听流程结束
               eof {
                 return 1
               }
             }]} {}
           '
           # 直接安装所需NDK（所有许可证已接受）
-          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "ndk;29.0.13599879"
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "ndk;${{ env.NDK_VERSION }}"
         shell: bash
 
 
@@ -80,13 +90,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache Gradle
+      - name: Cache Gradle and build outputs
         uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle') }}
+            ${{ env.ANDROID_DIR }}/app/build
+            ${{ env.ANDROID_DIR }}/app/.cxx  # NDK构建缓存目录
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle', '**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Increase Gradle memory
         working-directory: ${{ env.ANDROID_DIR }}
