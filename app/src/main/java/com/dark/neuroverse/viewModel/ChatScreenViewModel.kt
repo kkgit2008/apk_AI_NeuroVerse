@@ -66,6 +66,7 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
     val toolList: MutableStateFlow<List<Pair<String, List<Tools>>>> = MutableStateFlow(emptyList())
     val selectedTools: MutableStateFlow<Pair<String, Tools>> = MutableStateFlow(Pair("", Tools()))
     val modelList: MutableStateFlow<List<ModelsData>> = MutableStateFlow(emptyList())
+    val selectedModel: MutableStateFlow<ModelsData> = MutableStateFlow(ModelsData())
     val chatId = MutableStateFlow("")
     val _isGenerating = MutableStateFlow(false)
     val _generationState = MutableStateFlow(GenerationState.IDLE)
@@ -74,6 +75,10 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
     val currentRunningToolName = MutableStateFlow("")
 
     private val streamBuffer = StringBuilder()
+
+    // near your buffers
+    private val MAX_THINK_CHARS = 16000
+
     private var streamingMsgIndex = -1
     private var streamingMsgId = "-1"
 
@@ -87,6 +92,7 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
             // Keys & brain
             key.value = getOrCreateHardwareBackedAesKey(BuildConfig.ALIAS)
             rootNode.value = readBrainFile(key.value, context)
+            rootNode.value.printTree()
 
             val root = rootNode.value.getNodeDirect("root")
             val chatHistory = getDefaultChatHistory(root)
@@ -106,7 +112,10 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
                     defaults = ModelManager.ManagerDefaults(systemPrompt = ModelsList.generalPurposeSystemPrompt),
                     chatTemplate = ModelsList.chatTemplate,
                     forceReload = true
-                ) { Log.d("Model", "Model loaded successfully $model") }
+                ) {
+                    Log.d("Model", "Model loaded successfully $model")
+                    selectedModel.value = model
+                }
             }
 
             // Load Tools & Models
@@ -114,7 +123,6 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
             modelList.value = ModelManager.getAllModels()
         }
     }
-
 
     fun loadChatById(chatIdToLoad: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -146,16 +154,16 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
         ModelManager.unLoadModel()
         viewModelScope.launch(Dispatchers.IO) {
             ModelManager.loadModel(
-                modelData = model,
-                defaults = ModelManager.ManagerDefaults(
+                modelData = model, defaults = ModelManager.ManagerDefaults(
                     systemPrompt = if (selectedTools.value.first.isEmpty()) ModelsList.generalPurposeSystemPrompt
                     else ModelsList.getToolCallSystemPrompt(
                         buildToolsListForPrompt = selectedTools.value.let {
                             it.second.toolName + ":" + it.second.args.entries.joinToString { (k, v) -> "$k:$v" }
-                        })),
-                chatTemplate = ModelsList.chatTemplate,
-                forceReload = true) {
+                        })
+                ), chatTemplate = ModelsList.chatTemplate, forceReload = true
+            ) {
                 Log.d("Model", "Model loaded successfully ${model.modeName}")
+                selectedModel.value = model
             }
         }
     }
@@ -165,9 +173,15 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
         selectedTools.value = tool
         Neuron.setSystemPrompt(
             ModelsList.getToolCallSystemPrompt(
-            buildToolsListForPrompt = selectedTools.value.let {
-                it.second.toolName + ":" + it.second.args.entries.joinToString { (k, v) -> "$k:$v" }
-            }))
+                buildToolsListForPrompt = selectedTools.value.let {
+                    it.second.toolName + ":" + it.second.args.entries.joinToString { (k, v) -> "$k:$v" }
+                })
+        )
+    }
+
+    fun unSelectTool() {
+        selectedTools.value = Pair("", Tools())
+        Neuron.setSystemPrompt(ModelsList.generalPurposeSystemPrompt)
     }
 
     fun sendMessage(input: String, context: Context) {
@@ -181,7 +195,7 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
             streamingMsgIndex = list.size
             streamingMsgId = "-1"
             list += Message(
-                role = Role.Assistant,
+                role = if (selectedTools.value.first.isNotEmpty()) Role.Tool else Role.Assistant,
                 text = "",
                 id = streamingMsgId,
                 tool = if (selectedTools.value.first.isNotEmpty()) {
@@ -193,75 +207,175 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
             )
             _messages.value = list
 
-            // 2) Start generation on IO, but push tokens via a throttled updater
             withContext(Dispatchers.IO) {
-                streamBuffer.setLength(0)
+                // Buffers
+                val visibleSb = StringBuilder()
+                val thoughtSb = StringBuilder()
+                val rawSb = StringBuilder()  // full raw (for final pass/JSON)
+                var inThink = false
 
-                val final = Neuron.generateStreaming(
-                    prompt = input, onToken = { tok ->
-                        streamBuffer.append(tok)
-                        val now = System.nanoTime() / 1_000_000
-                        if (shouldPost(now)) {
-                            lastUiPost = now
-                            // Post a coalesced chunk to Main
-                            viewModelScope.launch(Dispatchers.Main.immediate) {
-                                if (streamingMsgIndex >= 0) {
-                                    val cur = _messages.value.toMutableList()
-                                    // mutate only the one item
-                                    val m = cur[streamingMsgIndex]
-                                    cur[streamingMsgIndex] = m.copy(text = streamBuffer.toString())
-                                    _messages.value = cur
-                                }
+                // replace your current postCoalesced() with this
+                fun postCoalesced() {
+                    val now = System.nanoTime() / 1_000_000
+                    if (shouldPost(now)) {
+                        lastUiPost = now
+
+                        val visible = visibleSb.toString()
+                        val thinking = if (thoughtSb.isNotEmpty()) thoughtSb.toString()
+                            .takeLast(MAX_THINK_CHARS)  // stream + cap
+                        else null
+
+                        viewModelScope.launch(Dispatchers.Main.immediate) {
+                            if (streamingMsgIndex >= 0) {
+                                val cur = _messages.value.toMutableList()
+                                val m = cur[streamingMsgIndex]
+                                cur[streamingMsgIndex] = m.copy(
+                                    text = visible, thought = thinking
+                                )
+                                _messages.value = cur
                             }
                         }
-                    })
-
-                // Final apply (ensures last few tokens render)
-                withContext(Dispatchers.Main.immediate) {
-                    if (streamingMsgIndex >= 0) {
-                        val cur = _messages.value.toMutableList()
-                        val m = cur[streamingMsgIndex]
-                        cur[streamingMsgIndex] = m.copy(
-                            id = UUID.randomUUID().toString(), text = streamBuffer.toString()
-                        )
-                        _messages.value = cur
                     }
                 }
 
-                // Tool call (if any)
+
+                // 🔌 stream
+                val finalRaw = Neuron.generateStreaming(
+                    prompt = input, onToken = { tok ->
+                        rawSb.append(tok)
+                        val lower = tok.lowercase()
+                        when {
+                            inThink && lower.contains("</think>") -> {
+                                // close tag within this token
+                                val before = tok.substringBefore("</think>", tok)
+                                val after = tok.substringAfter("</think>", tok)
+                                thoughtSb.append(before)
+                                inThink = false
+                                visibleSb.append(after)
+                            }
+
+                            inThink -> {
+                                thoughtSb.append(tok)
+                            }
+
+                            lower.contains("<think>") -> {
+                                // open tag within this token
+                                val before = tok.substringBefore("<think>", tok)
+                                val after = tok.substringAfter("<think>", tok)
+                                visibleSb.append(before)
+                                inThink = true
+                                thoughtSb.append(after)
+                            }
+
+                            else -> {
+                                visibleSb.append(tok)
+                            }
+                        }
+
+                        postCoalesced()
+                    })
+
+                // final coalesce & parse
+                suspend fun applyFinal(text: String, thought: String?) {
+                    withContext(Dispatchers.Main.immediate) {
+                        if (streamingMsgIndex >= 0) {
+                            val cur = _messages.value.toMutableList()
+                            val m = cur[streamingMsgIndex]
+                            cur[streamingMsgIndex] = m.copy(
+                                id = UUID.randomUUID().toString(),
+                                text = text,
+                                thought = thought?.take(6000)
+                            )
+
+                            _messages.value = cur
+                        }
+                    }
+                }
+
+                // Pass 2: handle JSON `{ thought, final }` or any leftover <think> tags
+                fun splitReasoning(raw: String): Pair<String, String?> {
+                    // 1) JSON { "final": "...", "thought": "..." }
+                    runCatching {
+                        val json = extractPureJson(raw)
+                        val obj = JSONObject(json)
+                        val final = obj.optString("final", obj.optString("answer", ""))
+                        val thought = obj.optString("thought", obj.optString("reasoning", null))
+                        if (final.isNotBlank() || thought != null) return final.ifBlank { "" } to thought
+                    }
+
+                    // 2) <think>…</think>
+                    val tagRegex = Regex("(?is)<think>(.*?)</think>")
+                    val thought = tagRegex.find(raw)?.groupValues?.getOrNull(1)
+                    val visible = raw.replace(tagRegex, "").trim()
+                    if (thought != null) return visible to thought
+
+                    // 3) “Reasoning:” / “Answer:” style
+                    val delim =
+                        Regex("(?is)(?:reasoning|thoughts?)\\s*:\\s*(.+?)\\s*(?:final|answer)\\s*:\\s*(.+)")
+                    delim.find(raw)?.let { m ->
+                        val t = m.groupValues[1].trim()
+                        val v = m.groupValues[2].trim()
+                        return v to t
+                    }
+
+                    return raw to null
+                }
+
+                // If we captured during streaming, start from those
+                var finalText = visibleSb.toString()
+                var finalThought = if (thoughtSb.isNotEmpty()) thoughtSb.toString() else null
+
+                // Final pass on the *raw* stream to catch JSON or missed tags
+                splitReasoning(rawSb.toString()).let { (v, t) ->
+                    if (v.isNotBlank()) finalText = v
+                    if (!t.isNullOrBlank()) finalThought = t
+                }
+
+                // 💬 set final assistant message (with thought)
+                applyFinal(finalText, finalThought)
+
+                // 🛠️ Tool call stays the same, but read from the raw JSON if present
                 if (selectedTools.value.first.isNotEmpty()) {
                     runCatching {
-                        val raw = extractPureJson(final)
+                        val raw = extractPureJson(finalRaw)
                         val obj = runCatching { JSONObject(raw) }.getOrNull()
 
-                        // Accept either the model-specified tool or the user-selected tool as fallback
                         val selectedToolName = selectedTools.value.second.toolName
                         val toolName = obj?.optString("tool")?.takeIf { it.isNotBlank() }
                             ?: selectedToolName.takeIf { it.isNotBlank() }
 
-                        if (toolName != null && selectedTools.value.first.isNotEmpty()) {
-                            // merge/ensure args object
+                        if (toolName != null) {
                             val args = obj?.optJSONObject("args") ?: obj?.optJSONObject("arguments")
                             ?: JSONObject()
+
                             val payload = JSONObject().apply {
                                 put("tool", toolName)
                                 put("args", args)
                             }
 
                             val loaded = PluginManager.runPlugin(
-                                context,
-                                selectedTools.value.first,
-                                payload.toString()
+                                context, selectedTools.value.first, payload.toString()
                             )
                             currentRunningToolName.value = toolName
 
                             runCatching {
-                                ToolRunner.run(loaded, context, payload){
+                                ToolRunner.run(loaded, context, payload) { data ->
                                     runBlocking {
                                         _generationState.value = GenerationState.DONE
                                         delay(2000)
                                         _generationState.value = GenerationState.IDLE
-                                        PluginManager.stopPlugin(PluginManager.currentPlugin.value?.manifest?.name ?: "Unknown Plugin")
+                                        val rawOutput = data
+                                        Neuron.setSystemPrompt(ModelsList.generalPurposeSystemPrompt)
+                                        sendInternalReasoningMessage(
+                                            """
+                                            Summarize the following output:
+                                            ${rawOutput.toString()}
+                                        """.trimIndent(), context
+                                        )
+                                        PluginManager.stopPlugin(
+                                            PluginManager.currentPlugin.value?.manifest?.name
+                                                ?: "Unknown Plugin"
+                                        )
                                     }
                                 }
                             }.onFailure { Log.e("ToolCall", "failed", it) }
@@ -279,6 +393,211 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
                 _isGenerating.value = false
                 updateChatList()
             }
+
+        }
+    }
+
+    fun sendInternalReasoningMessage(input: String, context: Context) {
+        _isGenerating.value = true
+        unSelectTool()
+
+        viewModelScope.launch(Dispatchers.Main) {
+            // 1) Create streaming placeholder exactly once
+            val list = _messages.value.toMutableList()
+            streamingMsgIndex = list.size
+            streamingMsgId = "-1"
+            list += Message(
+                role = if (selectedTools.value.first.isNotEmpty()) Role.Tool else Role.Assistant,
+                text = "",
+                id = streamingMsgId,
+                tool = if (selectedTools.value.first.isNotEmpty()) {
+                    RunningTool(
+                        toolName = selectedTools.value.second.toolName,
+                        toolPreview = ""              // will be filled after capture
+                    )
+                } else null
+            )
+            _messages.value = list
+
+            withContext(Dispatchers.IO) {
+                // Buffers
+                val visibleSb = StringBuilder()
+                val thoughtSb = StringBuilder()
+                val rawSb = StringBuilder()  // full raw (for final pass/JSON)
+                var inThink = false
+
+                // replace your current postCoalesced() with this
+                fun postCoalesced() {
+                    val now = System.nanoTime() / 1_000_000
+                    if (shouldPost(now)) {
+                        lastUiPost = now
+
+                        val visible = visibleSb.toString()
+                        val thinking = if (thoughtSb.isNotEmpty()) thoughtSb.toString()
+                            .takeLast(MAX_THINK_CHARS)  // stream + cap
+                        else null
+
+                        viewModelScope.launch(Dispatchers.Main.immediate) {
+                            if (streamingMsgIndex >= 0) {
+                                val cur = _messages.value.toMutableList()
+                                val m = cur[streamingMsgIndex]
+                                cur[streamingMsgIndex] = m.copy(
+                                    text = visible, thought = thinking
+                                )
+                                _messages.value = cur
+                            }
+                        }
+                    }
+                }
+
+
+                // 🔌 stream
+                val finalRaw = Neuron.generateStreaming(
+                    prompt = input, onToken = { tok ->
+                        rawSb.append(tok)
+                        val lower = tok.lowercase()
+                        when {
+                            inThink && lower.contains("</think>") -> {
+                                // close tag within this token
+                                val before = tok.substringBefore("</think>", tok)
+                                val after = tok.substringAfter("</think>", tok)
+                                thoughtSb.append(before)
+                                inThink = false
+                                visibleSb.append(after)
+                            }
+
+                            inThink -> {
+                                thoughtSb.append(tok)
+                            }
+
+                            lower.contains("<think>") -> {
+                                // open tag within this token
+                                val before = tok.substringBefore("<think>", tok)
+                                val after = tok.substringAfter("<think>", tok)
+                                visibleSb.append(before)
+                                inThink = true
+                                thoughtSb.append(after)
+                            }
+
+                            else -> {
+                                visibleSb.append(tok)
+                            }
+                        }
+
+                        postCoalesced()
+                    })
+
+                // final coalesce & parse
+                suspend fun applyFinal(text: String, thought: String?) {
+                    withContext(Dispatchers.Main.immediate) {
+                        if (streamingMsgIndex >= 0) {
+                            val cur = _messages.value.toMutableList()
+                            val m = cur[streamingMsgIndex]
+                            cur[streamingMsgIndex] = m.copy(
+                                id = UUID.randomUUID().toString(),
+                                text = text,
+                                thought = thought?.take(6000)
+                            )
+
+                            _messages.value = cur
+                        }
+                    }
+                }
+
+                // Pass 2: handle JSON `{ thought, final }` or any leftover <think> tags
+                fun splitReasoning(raw: String): Pair<String, String?> {
+                    // 1) JSON { "final": "...", "thought": "..." }
+                    runCatching {
+                        val json = extractPureJson(raw)
+                        val obj = JSONObject(json)
+                        val final = obj.optString("final", obj.optString("answer", ""))
+                        val thought = obj.optString("thought", obj.optString("reasoning", null))
+                        if (final.isNotBlank() || thought != null) return final.ifBlank { "" } to thought
+                    }
+
+                    // 2) <think>…</think>
+                    val tagRegex = Regex("(?is)<think>(.*?)</think>")
+                    val thought = tagRegex.find(raw)?.groupValues?.getOrNull(1)
+                    val visible = raw.replace(tagRegex, "").trim()
+                    if (thought != null) return visible to thought
+
+                    // 3) “Reasoning:” / “Answer:” style
+                    val delim =
+                        Regex("(?is)(?:reasoning|thoughts?)\\s*:\\s*(.+?)\\s*(?:final|answer)\\s*:\\s*(.+)")
+                    delim.find(raw)?.let { m ->
+                        val t = m.groupValues[1].trim()
+                        val v = m.groupValues[2].trim()
+                        return v to t
+                    }
+
+                    return raw to null
+                }
+
+                // If we captured during streaming, start from those
+                var finalText = visibleSb.toString()
+                var finalThought = if (thoughtSb.isNotEmpty()) thoughtSb.toString() else null
+
+                // Final pass on the *raw* stream to catch JSON or missed tags
+                splitReasoning(rawSb.toString()).let { (v, t) ->
+                    if (v.isNotBlank()) finalText = v
+                    if (!t.isNullOrBlank()) finalThought = t
+                }
+
+                // 💬 set final assistant message (with thought)
+                applyFinal(finalText, finalThought)
+
+                // 🛠️ Tool call stays the same, but read from the raw JSON if present
+                if (selectedTools.value.first.isNotEmpty()) {
+                    runCatching {
+                        val raw = extractPureJson(finalRaw)
+                        val obj = runCatching { JSONObject(raw) }.getOrNull()
+
+                        val selectedToolName = selectedTools.value.second.toolName
+                        val toolName = obj?.optString("tool")?.takeIf { it.isNotBlank() }
+                            ?: selectedToolName.takeIf { it.isNotBlank() }
+
+                        if (toolName != null) {
+                            val args = obj?.optJSONObject("args") ?: obj?.optJSONObject("arguments")
+                            ?: JSONObject()
+
+                            val payload = JSONObject().apply {
+                                put("tool", toolName)
+                                put("args", args)
+                            }
+
+                            val loaded = PluginManager.runPlugin(
+                                context, selectedTools.value.first, payload.toString()
+                            )
+                            currentRunningToolName.value = toolName
+
+                            runCatching {
+                                ToolRunner.run(loaded, context, payload) {
+                                    runBlocking {
+                                        _generationState.value = GenerationState.DONE
+                                        delay(2000)
+                                        _generationState.value = GenerationState.IDLE
+                                        PluginManager.stopPlugin(
+                                            PluginManager.currentPlugin.value?.manifest?.name
+                                                ?: "Unknown Plugin"
+                                        )
+                                    }
+                                }
+                            }.onFailure { Log.e("ToolCall", "failed", it) }
+                        } else {
+                            Log.d(
+                                "ToolCall",
+                                "No tool call detected or no tool selected — skipping plugin run"
+                            )
+                        }
+                    }.onFailure { Log.e("ToolCall", "failed", it) }
+                }
+
+                generateTitle()
+                updateConversation(context)
+                _isGenerating.value = false
+                updateChatList()
+            }
+
         }
     }
 
@@ -357,11 +676,13 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
                             hits++
                             val updated = message.copy(
                                 tool = RunningTool(
-                                    toolName = selectedToolName,
-                                    toolPreview = runningTool
+                                    toolName = selectedToolName, toolPreview = runningTool
                                 )
                             )
-                            Log.v(TAG, "updated messageId=${message.id} -> tool=$selectedToolName (len=${runningTool.length})")
+                            Log.v(
+                                TAG,
+                                "updated messageId=${message.id} -> tool=$selectedToolName (len=${runningTool.length})"
+                            )
                             updated
                         } else message
                     }
@@ -378,7 +699,10 @@ class ChatScreenViewModel(context: Context) : ViewModel() {
                 if (hits == 0) {
                     Log.w(TAG, "no-op: message id not found (id=$id). size=$beforeSize")
                 } else {
-                    Log.d(TAG, "done: hits=$hits, size $beforeSize->$afterSize, took=${durationMs}ms, thread=${Thread.currentThread().name}")
+                    Log.d(
+                        TAG,
+                        "done: hits=$hits, size $beforeSize->$afterSize, took=${durationMs}ms, thread=${Thread.currentThread().name}"
+                    )
                 }
             } catch (ce: CancellationException) {
                 Log.w(TAG, "cancelled(id=$id)", ce); throw ce

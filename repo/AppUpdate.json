@@ -1,8 +1,14 @@
 {
-  "hasUpdate": false,
-  "updateLink" : "https://huggingface.co/spaces/Void2377/neurov/resolve/main/app-neuroV-release.apk?download=true",
-  "version" : "0.0.4-Beta-Patch",
+  "hasUpdate": true,
+  "updateLink": "https://huggingface.co/spaces/Void2377/neurov/resolve/main/app-neuroV-release.apk?download=true",
+  "version": "0.0.4-Beta-Patch",
   "whatsNew": [
-    "Added Query App Permission"
+    "Added Query App Permission",
+    "Improved app update settings with new animations",
+    "Check for updates flow refined",
+    "Supported inbuilt web searching plugin",
+    "Default chatting interface at the home screen",
+    "Switch models at runtime using the bottom bar",
+    "Select and manage tools directly from chat interface"
   ]
 }

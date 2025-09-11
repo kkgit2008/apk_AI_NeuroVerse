@@ -198,17 +198,15 @@ object UpdateCenter {
     // ======= Install =======
     private fun promptInstall(apkUri: Uri) {
         // For Android 8.0+ you might need unknown sources permission for your app
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val canInstall = app.packageManager.canRequestPackageInstalls()
-            if (!canInstall) {
-                // direct user to allow from settings
-                val intent =
-                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).setData(Uri.parse("package:${app.packageName}"))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                app.startActivity(intent)
-                showError("Allow install from unknown sources and retry.")
-                return
-            }
+        val canInstall = app.packageManager.canRequestPackageInstalls()
+        if (!canInstall) {
+            // direct user to allow from settings
+            val intent =
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).setData(Uri.parse("package:${app.packageName}"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            app.startActivity(intent)
+            showError("Allow install from unknown sources and retry.")
+            return
         }
 
         val installIntent = Intent(Intent.ACTION_VIEW).apply {
@@ -250,14 +248,12 @@ object UpdateCenter {
 
     // ======= Notifications =======
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val mgr = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val ch = NotificationChannel(
-                NOTI_CHANNEL_ID, NOTI_CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW
-            )
-            ch.description = "Shows app update progress and results"
-            mgr.createNotificationChannel(ch)
-        }
+        val mgr = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val ch = NotificationChannel(
+            NOTI_CHANNEL_ID, NOTI_CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW
+        )
+        ch.description = "Shows app update progress and results"
+        mgr.createNotificationChannel(ch)
     }
 
     private fun notifyBuilder(): NotificationCompat.Builder {

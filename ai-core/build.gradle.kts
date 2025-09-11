@@ -14,8 +14,8 @@ android {
     ndkVersion = "29.0.13599879"
 
     defaultConfig {
-        minSdk = 33
 
+        minSdk = 30
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("proguard-rules.pro")
         ndk {
@@ -42,7 +42,12 @@ android {
             }
         }
     }
-
+    externalNativeBuild {
+        cmake {
+            path("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false

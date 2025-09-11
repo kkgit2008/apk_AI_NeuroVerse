@@ -242,7 +242,7 @@ fun MarkdownText(
     text: String,
     canCopy: Boolean = false,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.onSurface,
+    color: Color = MaterialTheme.colorScheme.primary,
     style: TextStyle = MaterialTheme.typography.bodyMedium
 ) {
     when(canCopy){

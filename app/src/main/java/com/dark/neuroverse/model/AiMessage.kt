@@ -9,7 +9,7 @@ data class ChatINFO(
 )
 
 @Serializable
-enum class Role { User, Assistant, Error }
+enum class Role { User, Assistant, Tool }
 
 @Serializable
 data class RunningTool(
@@ -22,5 +22,7 @@ data class Message(
     val id: String = UUID.randomUUID().toString(),
     val role: Role,
     val text: String,
+    val thought: String? = null,
     val tool: RunningTool? = null
 )
+

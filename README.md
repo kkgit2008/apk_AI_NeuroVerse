@@ -1,8 +1,8 @@
-# NeuroVerse
+# ToolNeuron (Previously NeuroVerse)
 
-**Offline Android AI chat with a modular plugin framework (automation coming soon).**
+**Offline Android AI chat with a modular plugin framework**
 
-NeuroVerse is a privacy‑first Android app that runs fully on‑device and showcases a plugin‑based architecture. The current public milestone is **chat‑only** via the first‑party **AI Chat** plugin. The command/automation engine exists in the codebase but is **disabled and not user‑facing yet**.
+ToolNeuron is a **secure, offline AI ecosystem for Android devices**. It lets users run private AI models and dynamic plugins **fully offline**, with **hardware‑grade encryption** for maximum privacy.
 
 ---
 
@@ -10,174 +10,134 @@ NeuroVerse is a privacy‑first Android app that runs fully on‑device and show
   <img src="https://img.shields.io/badge/Platform-Android_14%2B-informational" />
   <img src="https://img.shields.io/badge/Built%20With-Kotlin%20%7C%20Jetpack%20Compose-purple" />
   <a href="#license"><img src="https://img.shields.io/badge/License-Apache_2.0-green" /></a>
-  <a href="https://discord.gg/tG5r9aDF"><img src="https://img.shields.io/badge/Discord-Join%20NeuroV-5865F2?logo=discord&logoColor=white" /></a>
+  <a href="https://discord.gg/vjGEyQev"><img src="https://img.shields.io/badge/Discord-Join%20ToolNeuron-5865F2?logo=discord&logoColor=white"/></a>
 </p>
 
 ---
 
 ## Try it now
 
-* **Download APK:** [latest release](https://github.com/Siddhesh2377/NeuroVerse/releases/latest)
-> First‑run: install the APK, grant permissions, open **AI Chat** and start chatting. No cloud account required.
+* **Download APK:** [Latest release](https://github.com/Siddhesh2377/NeuroVerse/releases/latest)
+
+> Install the APK, grant permissions, open **AI Chat**, and start chatting. **No cloud account required.**
 
 ---
 
-## Preview :: For Install Plugin  :: Tool-Calling 
+## Preview: Plugin Installation & Tool‑Calling
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/f50ceb8a-5a32-4fa7-9ab4-e1223b983eb6" alt="NeuroVerse chat screenshot" width="220">
-  <img src="https://github.com/user-attachments/assets/c7187a51-b245-4305-b2d0-9cb2a1e467a9" alt="NeuroVerse Tool-Calling" width="220">
+  <img src="https://github.com/user-attachments/assets/f50ceb8a-5a32-4fa7-9ab4-e1223b983eb6" width="220">
+  <img src="https://github.com/user-attachments/assets/c7187a51-b245-4305-b2d0-9cb2a1e467a9" width="220">
 </p>
 
 ---
 
-## Working 
-<img width="800" alt="image" src="https://github.com/user-attachments/assets/eedf5670-b384-4883-8b62-f371122cd91d" />
+## Current Status
+
+* **Available now:**
+
+  * Local AI chat (on‑device)
+  * **Web Search plugin** (tool‑calling from chat)
+  * **Switch models at runtime**
+  * **In‑app updates** (check & install)
+  * **Import models from device** and **tweak parameters**
+  * **Model Store downloads**
+  * **Plugin manager** (enable/disable, inspect metadata like author/role)
+* **Coming soon:** Full automation, plugin gallery, advanced on‑device tools
 
 ---
 
-## Status
+## Key Features
 
-* **Current:** Chat‑only experience using the built‑in **AI Chat** plugin.
-* **Planned:** Command JSON generation, action validation, and on‑device UI automation are in development and will ship in future releases.
-
----
-
-## What you can do today
-
-* Local AI chat with a clean Material 3 UI.
-* Load first‑party sample plugins to explore the plugin lifecycle and UI embedding.
-* Build the app from source and experiment with the plugin API while automation is WIP.
+* Run **local AI chat** with no internet connection
+* **Import your own models** (GGUF) and tune settings
+* **Dynamic plugin ecosystem** with validation & sandboxing
+* **Web Search plugin** to pull fresh context into chat when you’re online
+* **Runtime model switching** without restarting the app
+* **In‑app updater** to ship fixes/features instantly
+* Hardware‑level data protection via **Android KeyStore**
 
 ---
 
-## Official plugins
+## Why ToolNeuron?
 
-First‑party plugins live here: [https://github.com/Siddhesh2377/Neuro-V-Sys-Plugins](https://github.com/Siddhesh2377/Neuro-V-Sys-Plugins)
+Most mobile AI apps phone home. ToolNeuron flips it:
 
-Available modules:
+* **Offline‑first** — your data stays on your device
+* **Pluggable tools** — add capabilities without app updates
+* **Secure by design** — strict plugin validation + sandboxing
 
-* `ai-chat` (current focus)
-* `app-io` (under active development)
-* `demo-macro` (prototype; not user‑facing yet)
+> "Honestly, what you're doing is legendary." – Early user on Discord 🌱
 
-Each module can be exported to a **plugin.zip** containing `plugin.aar` and `Manifest.json`, which NeuroVerse can import at runtime.
-
-### Plugin integration overview
-
-* **Manifest:** declare `entryClass` in `src/main/Manifest.json` (for example, `com.mp.ai_chat.ChatScreenPlugin`).
-* **Packaging:** produce `plugin.zip` with `plugin.aar` and `Manifest.json`.
-* **Loading:** import the zip from within NeuroVerse; the host validates and registers it.
-* **UI:** plugins may provide Jetpack Compose screens rendered within the app.
-
-See the plugin repo README for the `exportPluginZip` task and packaging details.
+Join the community: **[Discord](https://discord.gg/vjGEyQev)**
 
 ---
 
-## Features (current vs planned)
+## Official Plugins
 
-| Area       | Current (public)                                                               | Planned (roadmap)                                                 |
-| ---------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| Chat       | AI Chat plugin with local UI and message history                               | Tool‑aware chat, plugin suggestions                               |
-| Models     | Local model support under evaluation; dev builds experiment with GGUF runtimes | Curated on‑device models with auto‑download and versioning        |
-| Plugins    | Runtime loading of first‑party zips                                            | Community plugin gallery, ratings, templates                      |
-| Automation | Not available in public builds                                                 | JSON command generation, validator, Accessibility‑based execution |
-| Memory     | Basic chat history                                                             | Encrypted NeuronTree with scoped recall and user controls         |
+First‑party plugins live here: **ToolNeuron System Plugins** — *link placeholder*
+
+* **Web Search** — ✅ Available
+
+> Packaging: `.zip` containing `plugin.aar` and `Manifest.json`.
 
 ---
 
-## Architecture (high level)
+## Models & Engine
 
-| Layer            | Responsibility                                       |
-| ---------------- | ---------------------------------------------------- |
-| UI               | Jetpack Compose app shell and plugin screens         |
-| Plugin Host      | Discovers, validates, and mounts plugin entry points |
-| Inference (chat) | Local model adapter and chat loop                    |
-| Command Engine   | Present but disabled in public builds                |
-| Storage          | Room‑backed data; encryption work in progress        |
+* **Backend:** `llama.cpp` via **JNI**
+* **Model format:** **GGUF** (import your own)
+* **Controls:** temperature, top‑p, max tokens, etc.
+* **Switcher:** change models at runtime from Settings
 
 ---
 
-## Installation
+## Security & Privacy
 
-### Install APK
-
-1. Download from the [latest release](https://github.com/Siddhesh2377/NeuroVerse/releases/latest).
-2. Install on Android 14 or newer.
-3. Open **AI Chat** and start a conversation.
-
-### Build from source
-
-1. Clone the repository and open in Android Studio.
-2. Sync Gradle and build `:app`.
-3. Run on a physical device for best performance.
+* No cloud storage — **fully offline experience** by default
+* Zero analytics/telemetry in the core app
+* Hardware‑backed encryption with Android KeyStore
+* Strong validation before loading any plugin
 
 ---
 
-## Developing plugins
+## Get Involved
 
-1. Start from the template in **Neuro‑V‑Sys Plugins**.
-2. Implement your `entryClass` and any Compose UI.
-3. Run the export task to produce `plugin.zip`.
-4. Import the zip into NeuroVerse from the Plugins screen.
+* **Contribute code** via pull requests
+* Drop feedback & feature requests on **[Discord](https://discord.gg/vjGEyQev)**
 
-Open a PR to add your plugin to the community list once automation support ships broadly.
+Every contribution helps keep ToolNeuron free and open‑source.
 
 ---
 
 ## Roadmap
 
-* Ship command generation and validator in a public build
-* Accessibility‑based action runner with safety guardrails
-* In‑app plugin gallery and submission flow
-* Basic task inspector and execution logs
-* Small, pre‑bundled model for first‑run offline chat
-
-Feedback is welcome in Issues and Discussions.
-
----
-
-## Security and privacy
-
-* Chat runs locally; no cloud requirement for the core experience.
-* No analytics or telemetry in the core project.
-* Always review third‑party plugin code before installing.
-
----
-
-## Contributing
-
-Contributions are welcome. Focus areas: plugin API, chat UX, model adapters, storage, and future automation.
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Document changes.
-4. Open a pull request with a clear description and screenshots.
-
-Good first issues are labeled accordingly.
+* ✅ Import custom models
+* ✅ Web Search plugin
+* ✅ In‑app updates
+* 🚀 Plugin gallery for community sharing
+* 🔒 End‑to‑end encryption for chat & storage
+* ⚡ Automation tools for advanced workflows
+* 🧩 Expand first‑party plugin set
 
 ---
 
 ## License
 
-NeuroVerse is licensed under the **Apache License 2.0**.
-
-See [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTICE). Third‑party components remain under their original licenses.
+Licensed under the **Apache License 2.0**. See [`LICENSE`](./LICENSE).
 
 ---
 
 ## Author
 
 **Siddhesh Sonar**
-Android Developer · AI Enthusiast · Open‑Source Contributor
-GitHub: [https://github.com/Siddhesh2377](https://github.com/Siddhesh2377)
+Android Developer · AI Enthusiast · Open Source Contributor
+GitHub: [@Siddhesh2377](https://github.com/Siddhesh2377)
 
 ---
 
 ## Acknowledgements
 
-* `llama.cpp` and the GGUF ecosystem
-* `SmolChat-Android`
-* JetBrains
-* Android Open Source Project
-* GitHub
+* `llama.cpp` and the GGUF community
+* Jetpack Compose & the Android Open Source Project
+* All early users and open‑source contributors 🙌
