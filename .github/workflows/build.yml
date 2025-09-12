@@ -33,14 +33,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Show NDK path before install
-        run: |
-          echo ">>ndk/"
-          ls -al /usr/local/lib/android/sdk/ndk
-          echo ">>ndk/version/"
-          ls -al /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
-          continue-on-error: true
-
       - name: Cache NDK
         uses: actions/cache@v3
         id: cache-ndk
@@ -90,7 +82,6 @@ jobs:
           echo ">>ndk/version/"
           ls -al /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
           exit 1
-          continue-on-error: false
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
