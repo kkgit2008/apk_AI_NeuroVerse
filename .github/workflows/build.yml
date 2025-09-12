@@ -89,7 +89,8 @@ jobs:
           ls -al /usr/local/lib/android/sdk/ndk
           echo ">>ndk/version/"
           ls -al /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
-          continue-on-error: true
+          exit 1
+          continue-on-error: false
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
