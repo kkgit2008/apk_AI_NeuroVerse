@@ -14,7 +14,8 @@ env:
   ### Build from project root (when 'app' folder is just at project root)
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
-  NDK_VERSION: 28.2.13676358
+  NDK_VERSION: 29.0.13599879
+  # NDK_VERSION: 28.2.13676358
 
 permissions:
   contents: write
